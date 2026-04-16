@@ -1,10 +1,30 @@
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Users, CreditCard, Bed, User, Bell } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import { db, auth } from '../lib/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 export default function Layout() {
   const location = useLocation();
+  const [branding, setBranding] = useState({
+    hostelName: 'SOVEREIGN',
+    logoUrl: ''
+  });
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'settings', 'global'), (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        setBranding({
+          hostelName: data.hostelName?.toUpperCase() || 'SOVEREIGN',
+          logoUrl: data.logoUrl || ''
+        });
+      }
+    });
+    return () => unsub();
+  }, []);
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
@@ -22,10 +42,14 @@ export default function Layout() {
         {/* Top Bar (Status Bar style for mobile) */}
         <header className="h-16 bg-white border-b border-surface-container-high flex items-center justify-between px-6 sticky top-0 z-50 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
-              <Bed size={16} className="text-white" />
+            <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center overflow-hidden">
+              {branding.logoUrl ? (
+                <img src={branding.logoUrl} alt="Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              ) : (
+                <Bed size={16} className="text-white" />
+              )}
             </div>
-            <span className="text-base font-bold tracking-tight text-secondary">SOVEREIGN</span>
+            <span className="text-base font-bold tracking-tight text-secondary">{branding.hostelName}</span>
           </div>
           
           <div className="flex items-center gap-3">
@@ -35,7 +59,7 @@ export default function Layout() {
             </NavLink>
             <div className="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden border border-surface-container-high">
               <img 
-                src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=100&h=100" 
+                src={auth.currentUser?.photoURL || "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=100&h=100"} 
                 alt="Admin" 
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"

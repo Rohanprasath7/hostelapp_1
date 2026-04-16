@@ -1,0 +1,101 @@
+{
+  "entities": {
+    "Resident": {
+      "title": "Resident",
+      "description": "A resident staying in the hostel.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The unique ID of the resident (auth UID)." },
+        "name": { "type": "string", "description": "Full name of the resident." },
+        "email": { "type": "string", "format": "email", "description": "Institutional email." },
+        "phone": { "type": "string", "description": "Phone number." },
+        "room": { "type": "string", "description": "Assigned room ID." },
+        "status": { "type": "string", "enum": ["Active", "Pending", "Checked Out"], "description": "Current status." },
+        "balance": { "type": "number", "description": "Outstanding balance." },
+        "joinedAt": { "type": "string", "format": "date-time", "description": "Onboarding date." },
+        "nationality": { "type": "string", "description": "Nationality of the resident." },
+        "currency": { "type": "string", "description": "Currency symbol based on nationality." }
+      },
+      "required": ["name", "email", "room", "status", "nationality", "currency"]
+    },
+    "Room": {
+      "title": "Room",
+      "description": "A room in the hostel.",
+      "type": "object",
+      "properties": {
+        "number": { "type": "string", "description": "Room number (e.g., 402)." },
+        "wing": { "type": "string", "description": "Wing (e.g., East Wing)." },
+        "type": { "type": "string", "enum": ["Standard", "Suite", "Deluxe"], "description": "Room type." },
+        "capacity": { "type": "number", "description": "Total bed capacity." },
+        "occupied": { "type": "number", "description": "Number of occupied beds." },
+        "price": { "type": "number", "description": "Monthly rent." },
+        "status": { "type": "string", "enum": ["Available", "Full", "Maintenance"], "description": "Current status." }
+      },
+      "required": ["number", "wing", "type", "capacity", "occupied", "price", "status"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "A financial transaction record.",
+      "type": "object",
+      "properties": {
+        "residentId": { "type": "string", "description": "ID of the resident." },
+        "residentName": { "type": "string", "description": "Name of the resident (denormalized)." },
+        "amount": { "type": "number", "description": "Amount paid." },
+        "type": { "type": "string", "enum": ["Rent", "Security", "Utility"], "description": "Payment type." },
+        "status": { "type": "string", "enum": ["Completed", "Pending", "Failed"], "description": "Transaction status." },
+        "method": { "type": "string", "description": "Payment method (e.g., UPI, Card)." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Time of transaction." }
+      },
+      "required": ["residentId", "amount", "type", "status", "timestamp"]
+    },
+    "Complaint": {
+      "title": "Complaint",
+      "description": "A maintenance or noise complaint.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Short title of the issue." },
+        "description": { "type": "string", "description": "Detailed description." },
+        "status": { "type": "string", "enum": ["Open", "In Progress", "Resolved"], "description": "Current status." },
+        "residentId": { "type": "string", "description": "ID of the reporting resident." },
+        "residentName": { "type": "string", "description": "Name of the resident." },
+        "room": { "type": "string", "description": "Room associated with the complaint." },
+        "category": { "type": "string", "enum": ["Maintenance", "Wifi", "Noise", "Other"], "description": "Complaint category." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Time of report." }
+      },
+      "required": ["title", "status", "residentId", "createdAt"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Global application settings.",
+      "type": "object",
+      "properties": {
+        "hostelName": { "type": "string", "description": "Name of the hostel." },
+        "logoUrl": { "type": "string", "description": "URL of the hostel logo." },
+        "upiId": { "type": "string", "description": "UPI ID for payments." }
+      },
+      "required": ["hostelName"]
+    }
+  },
+  "firestore": {
+    "/settings/{settingId}": {
+      "schema": "Settings",
+      "description": "Global settings (usually a single document 'global')."
+    },
+    "/residents/{residentId}": {
+      "schema": "Resident",
+      "description": "Collection of residents."
+    },
+    "/rooms/{roomId}": {
+      "schema": "Room",
+      "description": "Collection of rooms."
+    },
+    "/payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Collection of payments."
+    },
+    "/complaints/{complaintId}": {
+      "schema": "Complaint",
+      "description": "Collection of complaints."
+    }
+  }
+}

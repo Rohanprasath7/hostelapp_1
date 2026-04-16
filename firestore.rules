@@ -1,0 +1,111 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: residents
+    // Fields: name (string), email (string), phone (string), room (string), status (string), balance (number), joinedAt (timestamp), uid (string)
+    //
+    // Collection: rooms
+    // Fields: number (string), wing (string), type (string), capacity (number), occupied (number), price (number), status (string)
+    //
+    // Collection: payments
+    // Fields: residentId (string), residentName (string), amount (number), type (string), status (string), method (string), timestamp (timestamp)
+    //
+    // Collection: complaints
+    // Fields: title (string), description (string), status (string), residentId (string), residentName (string), room (string), category (string), createdAt (timestamp)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "rohanlucky776@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // Domain Validators
+    function isValidResident(data) {
+      return data.keys().hasAll(['name', 'email', 'room', 'status', 'nationality', 'currency']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             isValidEmail(data.email) &&
+             data.status in ['Active', 'Pending', 'Checked Out'] &&
+             data.nationality is string && data.currency is string;
+    }
+
+    function isValidSettings(data) {
+      return data.keys().hasAll(['hostelName']) &&
+             data.hostelName is string && data.hostelName.size() > 0 && data.hostelName.size() < 100 &&
+             (!('logoUrl' in data) || data.logoUrl is string) &&
+             (!('upiId' in data) || data.upiId is string);
+    }
+
+    function isValidRoom(data) {
+      return data.keys().hasAll(['number', 'wing', 'type', 'capacity', 'occupied', 'price', 'status']) &&
+             data.number is string && data.capacity is number && data.occupied is number &&
+             data.status in ['Available', 'Full', 'Maintenance'];
+    }
+
+    function isValidPayment(data) {
+      return data.keys().hasAll(['residentId', 'amount', 'type', 'status', 'timestamp']) &&
+             data.amount is number && data.amount > 0 &&
+             data.status in ['Completed', 'Pending', 'Failed'];
+    }
+
+    function isValidComplaint(data) {
+      return data.keys().hasAll(['title', 'status', 'residentId', 'createdAt']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.status in ['Open', 'In Progress', 'Resolved'];
+    }
+
+    // Rules
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidSettings(request.resource.data);
+    }
+
+    match /residents/{residentId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidResident(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /rooms/{roomId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidRoom(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidPayment(request.resource.data);
+      allow update: if isAdmin() && isValidPayment(request.resource.data);
+    }
+
+    match /complaints/{complaintId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidComplaint(request.resource.data);
+      allow update: if (isAdmin() || (isOwner(resource.data.residentId))) && isValidComplaint(request.resource.data);
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create, update: if isOwner(userId) && (request.resource.data.role == resource.data.role || isAdmin());
+    }
+  }
+}

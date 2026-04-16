@@ -2,14 +2,27 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, Fingerprint, Key, Building2, Headphones } from 'lucide-react';
 import { motion } from 'motion/react';
+import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/');
+    setError("Email login is currently disabled for security. Please use Google Sign-In.");
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      navigate('/');
+    } catch (err: any) {
+      setError(err.message);
+    }
   };
 
   return (
@@ -37,6 +50,11 @@ export default function Login() {
             className="flex-1 flex flex-col"
           >
             <form onSubmit={handleLogin} className="space-y-5">
+              {error && (
+                <div className="bg-error/10 text-error text-[10px] font-bold p-3 rounded-lg uppercase tracking-wider text-center">
+                  {error}
+                </div>
+              )}
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60 ml-1">Administrative Email</label>
                 <div className="flex items-center bg-surface rounded-xl px-4 py-3.5 border border-surface-container-high focus-within:border-primary/30 transition-all">
@@ -85,6 +103,15 @@ export default function Login() {
                 <span className="text-[10px] font-bold text-on-surface-variant/30 uppercase tracking-widest">or secure sign-in</span>
                 <div className="h-[1px] flex-1 bg-surface-container-high"></div>
               </div>
+
+              <button 
+                type="button"
+                onClick={handleGoogleLogin}
+                className="w-full flex items-center justify-center gap-3 py-4 px-4 bg-white border border-surface-container-high rounded-xl text-on-surface font-bold text-sm hover:bg-surface transition-all active:scale-[0.98] shadow-sm"
+              >
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+                Sign in with Google
+              </button>
 
               <div className="grid grid-cols-2 gap-3">
                 <button type="button" className="flex items-center justify-center gap-2 py-3 px-4 bg-white border border-surface-container-high rounded-xl text-on-surface font-bold text-xs hover:bg-surface transition-colors">

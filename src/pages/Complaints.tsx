@@ -1,14 +1,46 @@
-import { PlusCircle, Wrench, Wifi, Wind, Volume2, ChevronRight, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { PlusCircle, Wrench, Wifi, Wind, Volume2, ChevronRight, CheckCircle2, Clock, AlertCircle, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { cn } from '../lib/utils';
 
 export default function Complaints() {
-  const complaints = [
-    { id: 1, title: 'Leaking Pipe - Room 402', desc: 'Water dripping from the bathroom ceiling since morning. Potential mold risk.', status: 'Open', resident: 'Alex Chen', time: '2h ago', icon: Wrench, color: 'text-error', bg: 'bg-error/10' },
-    { id: 2, title: 'Wi-Fi Connectivity Issues', desc: 'Signal weak in the common area and North Wing. Technician assigned.', status: 'In Progress', resident: 'Sarah Miller', time: '5h ago', icon: Wifi, color: 'text-secondary', bg: 'bg-secondary/10' },
-    { id: 3, title: 'AC Maintenance - Room 105', desc: 'Filter cleaned and gas refilled. System operating normally.', status: 'Resolved', resident: 'Jordan P.', time: 'Yesterday', icon: Wind, color: 'text-tertiary', bg: 'bg-tertiary/10' },
-    { id: 4, title: 'Noise Complaint', desc: 'Loud music coming from Room 302 after 10 PM curfew.', status: 'Open', resident: 'Multiple', time: '12m ago', icon: Volume2, color: 'text-primary', bg: 'bg-primary/10' },
-  ];
+  const [complaints, setComplaints] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('All Items');
+
+  useEffect(() => {
+    const q = query(collection(db, 'complaints'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setComplaints(data);
+      setLoading(false);
+    }, (error) => {
+      console.error("Firestore Error:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const getIcon = (category: string) => {
+    switch (category) {
+      case 'Wifi': return Wifi;
+      case 'Maintenance': return Wrench;
+      case 'Noise': return Volume2;
+      default: return AlertCircle;
+    }
+  };
+
+  const filteredComplaints = complaints.filter(c => 
+    activeTab === 'All Items' || c.status === activeTab
+  );
+
+  const unresolvedCount = complaints.filter(c => c.status !== 'Resolved').length;
 
   return (
     <div className="space-y-8 pb-12">
@@ -30,7 +62,7 @@ export default function Complaints() {
             <span className="bg-error/10 text-error px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider">Priority Red</span>
           </div>
           <div className="flex items-baseline gap-4 relative z-10">
-            <span className="text-5xl font-bold text-primary tracking-tight">14</span>
+            <span className="text-5xl font-bold text-primary tracking-tight">{unresolvedCount}</span>
             <div className="text-[11px] font-medium text-on-surface-variant/60 leading-relaxed uppercase tracking-wider">
               Active tickets requiring immediate <br/> attention in the last 24 hours.
             </div>
@@ -41,7 +73,9 @@ export default function Complaints() {
         <div className="bg-white rounded-2xl p-6 flex items-center justify-between shadow-sm border border-surface-container-high">
           <div>
             <span className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant/50 block mb-1">Resolution Rate</span>
-            <span className="text-4xl font-bold text-tertiary tracking-tight">98%</span>
+            <span className="text-4xl font-bold text-tertiary tracking-tight">
+              {complaints.length > 0 ? Math.round((complaints.filter(c => c.status === 'Resolved').length / complaints.length) * 100) : 0}%
+            </span>
           </div>
           <div className="w-14 h-14 rounded-xl bg-tertiary/10 flex items-center justify-center">
             <CheckCircle2 className="text-tertiary" size={28} />
@@ -51,12 +85,13 @@ export default function Complaints() {
 
       {/* Filter Chips */}
       <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-        {['All Items', 'Open', 'In Progress', 'Resolved'].map((tab, i) => (
+        {['All Items', 'Open', 'In Progress', 'Resolved'].map((tab) => (
           <button
             key={tab}
+            onClick={() => setActiveTab(tab)}
             className={cn(
               "px-5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all",
-              i === 0 ? "bg-primary text-white shadow-sm" : "bg-white border border-surface-container-high text-on-surface-variant hover:bg-surface"
+              activeTab === tab ? "bg-primary text-white shadow-sm" : "bg-white border border-surface-container-high text-on-surface-variant hover:bg-surface"
             )}
           >
             {tab}
@@ -66,47 +101,68 @@ export default function Complaints() {
 
       {/* List */}
       <div className="space-y-4">
-        {complaints.map((item, i) => (
-          <motion.div
-            key={item.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            className="bg-white rounded-2xl p-5 flex flex-col gap-4 shadow-sm border border-surface-container-high group hover:border-primary/30 hover:shadow-md transition-all active:scale-[0.99]"
-          >
-            <div className="flex items-start gap-4">
-              <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border border-surface-container-high", item.bg, item.color)}>
-                <item.icon size={22} />
-              </div>
-              <div className="flex-grow space-y-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-on-surface text-base group-hover:text-primary transition-colors">{item.title}</h3>
-                  <span className={cn(
-                    "text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md",
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-12 text-on-surface-variant/40">
+            <Loader2 className="animate-spin mb-2" size={32} />
+            <span className="text-xs font-bold uppercase tracking-widest">Syncing Registry...</span>
+          </div>
+        ) : filteredComplaints.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-surface-container-high">
+            <p className="text-on-surface-variant text-sm font-medium">No complaints found.</p>
+          </div>
+        ) : (
+          filteredComplaints.map((item, i) => {
+            const Icon = getIcon(item.category);
+            return (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className="bg-white rounded-2xl p-5 flex flex-col gap-4 shadow-sm border border-surface-container-high group hover:border-primary/30 hover:shadow-md transition-all active:scale-[0.99]"
+              >
+                <div className="flex items-start gap-4">
+                  <div className={cn(
+                    "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border border-surface-container-high",
                     item.status === 'Open' ? 'bg-error/10 text-error' : 
                     item.status === 'In Progress' ? 'bg-secondary/10 text-secondary' : 
                     'bg-tertiary/10 text-tertiary'
                   )}>
-                    {item.status}
-                  </span>
+                    <Icon size={22} />
+                  </div>
+                  <div className="flex-grow space-y-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-on-surface text-base group-hover:text-primary transition-colors">{item.title}</h3>
+                      <span className={cn(
+                        "text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md",
+                        item.status === 'Open' ? 'bg-error/10 text-error' : 
+                        item.status === 'In Progress' ? 'bg-secondary/10 text-secondary' : 
+                        'bg-tertiary/10 text-tertiary'
+                      )}>
+                        {item.status}
+                      </span>
+                    </div>
+                    <p className="text-on-surface-variant text-sm line-clamp-2 leading-relaxed">{item.description}</p>
+                  </div>
                 </div>
-                <p className="text-on-surface-variant text-sm line-clamp-2 leading-relaxed">{item.desc}</p>
-              </div>
-            </div>
-            <div className="flex items-center justify-between pt-4 border-t border-surface">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-wider">Resident</span>
-                <span className="text-xs font-bold text-on-surface">{item.resident}</span>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="text-right">
-                  <span className="text-[10px] font-bold text-on-surface-variant/30 uppercase tracking-wider">{item.time}</span>
+                <div className="flex items-center justify-between pt-4 border-t border-surface">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-wider">Resident</span>
+                    <span className="text-xs font-bold text-on-surface">{item.residentName}</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <span className="text-[10px] font-bold text-on-surface-variant/30 uppercase tracking-wider">
+                        {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'Just now'}
+                      </span>
+                    </div>
+                    <ChevronRight size={18} className="text-on-surface-variant/30 group-hover:text-primary transition-colors" />
+                  </div>
                 </div>
-                <ChevronRight size={18} className="text-on-surface-variant/30 group-hover:text-primary transition-colors" />
-              </div>
-            </div>
-          </motion.div>
-        ))}
+              </motion.div>
+            );
+          })
+        )}
       </div>
 
       {/* Featured Visual Card */}

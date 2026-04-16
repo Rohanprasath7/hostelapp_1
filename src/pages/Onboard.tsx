@@ -1,7 +1,82 @@
-import { User, Mail, Phone, Building2, CreditCard, ArrowRight, CheckCircle2, Info } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { User, Mail, Phone, Building2, CreditCard, ArrowRight, CheckCircle2, Info, Loader2, Map } from 'lucide-react';
 import { motion } from 'motion/react';
+import { collection, addDoc, serverTimestamp, onSnapshot, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 export default function Onboard() {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [inventory, setInventory] = useState({ available: 0, occupancy: 0 });
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    room: '',
+    balance: 0,
+    nationality: 'India',
+    currency: '₹'
+  });
+
+  useEffect(() => {
+    // Fetch available rooms
+    const q = query(collection(db, 'rooms'), where('status', '==', 'Available'));
+    const unsubRooms = onSnapshot(collection(db, 'rooms'), (snapshot) => {
+      const allRooms = snapshot.docs.map(doc => doc.data());
+      const availableRooms = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter((r: any) => r.occupied < r.capacity && r.status !== 'Maintenance');
+      
+      setRooms(availableRooms);
+
+      const totalCapacity = allRooms.reduce((acc, r: any) => acc + (r.capacity || 0), 0);
+      const totalOccupied = allRooms.reduce((acc, r: any) => acc + (r.occupied || 0), 0);
+      
+      setInventory({
+        available: totalCapacity - totalOccupied,
+        occupancy: totalCapacity > 0 ? Math.round((totalOccupied / totalCapacity) * 100) : 0
+      });
+    });
+
+    return () => unsubRooms();
+  }, []);
+
+  const nationalities = [
+    { name: 'India', currency: '₹' },
+    { name: 'USA', currency: '$' },
+    { name: 'UK', currency: '£' },
+    { name: 'Europe', currency: '€' },
+    { name: 'Japan', currency: '¥' },
+    { name: 'Australia', currency: 'A$' },
+  ];
+
+  const handleNationalityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selected = nationalities.find(n => n.name === e.target.value);
+    if (selected) {
+      setFormData({ ...formData, nationality: selected.name, currency: selected.currency });
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await addDoc(collection(db, 'residents'), {
+        ...formData,
+        status: 'Active',
+        joinedAt: new Date().toISOString(),
+        createdAt: serverTimestamp()
+      });
+      navigate('/residents');
+    } catch (error) {
+      console.error("Error adding resident:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-8 pb-12">
       <header>
@@ -14,7 +89,7 @@ export default function Onboard() {
         <p className="text-on-surface-variant text-sm">Create a new ledger entry for an incoming guest.</p>
       </header>
 
-      <form className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
         {/* Identity Section */}
         <section className="bg-white rounded-2xl p-6 shadow-sm border border-surface-container-high relative overflow-hidden">
           <div className="absolute top-0 left-0 w-1.5 h-full bg-primary"></div>
@@ -26,21 +101,41 @@ export default function Onboard() {
               <label className="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60 ml-1">Full Name</label>
               <div className="flex items-center bg-surface rounded-xl px-4 py-3 border border-surface-container-high focus-within:border-primary/30 transition-all">
                 <User className="text-on-surface-variant/40 mr-3" size={18} />
-                <input type="text" placeholder="Johnathan Doe" className="w-full bg-transparent border-none focus:ring-0 p-0 font-bold text-on-surface placeholder:text-on-surface-variant/30 text-sm" />
+                <input 
+                  type="text" 
+                  placeholder="Johnathan Doe" 
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  className="w-full bg-transparent border-none focus:ring-0 p-0 font-bold text-on-surface placeholder:text-on-surface-variant/30 text-sm" 
+                />
               </div>
             </div>
             <div className="space-y-1.5">
               <label className="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60 ml-1">Institutional Email</label>
               <div className="flex items-center bg-surface rounded-xl px-4 py-3 border border-surface-container-high focus-within:border-primary/30 transition-all">
                 <Mail className="text-on-surface-variant/40 mr-3" size={18} />
-                <input type="email" placeholder="j.doe@university.edu" className="w-full bg-transparent border-none focus:ring-0 p-0 font-bold text-on-surface placeholder:text-on-surface-variant/30 text-sm" />
+                <input 
+                  type="email" 
+                  placeholder="j.doe@university.edu" 
+                  required
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  className="w-full bg-transparent border-none focus:ring-0 p-0 font-bold text-on-surface placeholder:text-on-surface-variant/30 text-sm" 
+                />
               </div>
             </div>
             <div className="space-y-1.5">
               <label className="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60 ml-1">Phone Number</label>
               <div className="flex items-center bg-surface rounded-xl px-4 py-3 border border-surface-container-high focus-within:border-primary/30 transition-all">
                 <Phone className="text-on-surface-variant/40 mr-3" size={18} />
-                <input type="tel" placeholder="+1 (555) 000-0000" className="w-full bg-transparent border-none focus:ring-0 p-0 font-bold text-on-surface placeholder:text-on-surface-variant/30 text-sm" />
+                <input 
+                  type="tel" 
+                  placeholder="+1 (555) 000-0000" 
+                  value={formData.phone}
+                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  className="w-full bg-transparent border-none focus:ring-0 p-0 font-bold text-on-surface placeholder:text-on-surface-variant/30 text-sm" 
+                />
               </div>
             </div>
           </div>
@@ -57,19 +152,49 @@ export default function Onboard() {
               <label className="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60 ml-1">Room Assignment</label>
               <div className="flex items-center bg-surface rounded-xl px-4 py-3 border border-surface-container-high focus-within:border-primary/30 transition-all">
                 <Building2 className="text-on-surface-variant/40 mr-3" size={18} />
-                <select className="w-full bg-transparent border-none focus:ring-0 p-0 font-bold text-on-surface appearance-none text-sm">
-                  <option>Select Room</option>
-                  <option>Suite 402 - East Wing</option>
-                  <option>Room 105 - Ground Floor</option>
+                <select 
+                  required
+                  value={formData.room}
+                  onChange={(e) => setFormData({...formData, room: e.target.value})}
+                  className="w-full bg-transparent border-none focus:ring-0 p-0 font-bold text-on-surface appearance-none text-sm"
+                >
+                  <option value="">Select Available Room</option>
+                  {rooms.map(room => (
+                    <option key={room.id} value={room.number}>
+                      Room {room.number} ({room.capacity - room.occupied} beds left)
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
             <div className="space-y-1.5">
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60 ml-1">Security Deposit</label>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60 ml-1">Nationality</label>
+              <div className="flex items-center bg-surface rounded-xl px-4 py-3 border border-surface-container-high focus-within:border-primary/30 transition-all">
+                <Map className="text-on-surface-variant/40 mr-3" size={18} />
+                <select 
+                  required
+                  value={formData.nationality}
+                  onChange={handleNationalityChange}
+                  className="w-full bg-transparent border-none focus:ring-0 p-0 font-bold text-on-surface appearance-none text-sm"
+                >
+                  {nationalities.map(n => (
+                    <option key={n.name} value={n.name}>{n.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60 ml-1">Initial Balance</label>
               <div className="flex items-center bg-surface rounded-xl px-4 py-3 border border-surface-container-high focus-within:border-primary/30 transition-all">
                 <CreditCard className="text-on-surface-variant/40 mr-3" size={18} />
-                <span className="font-bold text-on-surface-variant mr-1 text-sm">$</span>
-                <input type="number" placeholder="0.00" className="w-full bg-transparent border-none focus:ring-0 p-0 font-bold text-on-surface placeholder:text-on-surface-variant/30 text-sm" />
+                <span className="font-bold text-on-surface-variant mr-1 text-sm">{formData.currency}</span>
+                <input 
+                  type="number" 
+                  placeholder="0.00" 
+                  value={formData.balance}
+                  onChange={(e) => setFormData({...formData, balance: Number(e.target.value)})}
+                  className="w-full bg-transparent border-none focus:ring-0 p-0 font-bold text-on-surface placeholder:text-on-surface-variant/30 text-sm" 
+                />
               </div>
             </div>
           </div>
@@ -79,8 +204,12 @@ export default function Onboard() {
           <p className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-wider text-center leading-relaxed">
             By registering, you confirm the resident has signed the architectural lease agreement and digital ledger terms.
           </p>
-          <button type="submit" className="w-full py-4 rounded-xl bg-primary text-white font-bold shadow-lg shadow-primary/20 active:scale-[0.98] transition-all flex items-center justify-center gap-3 hover:bg-primary-container">
-            Register Resident <CheckCircle2 size={18} />
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="w-full py-4 rounded-xl bg-primary text-white font-bold shadow-lg shadow-primary/20 active:scale-[0.98] transition-all flex items-center justify-center gap-3 hover:bg-primary-container disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="animate-spin" size={18} /> : <>Register Resident <CheckCircle2 size={18} /></>}
           </button>
         </div>
       </form>
@@ -91,19 +220,19 @@ export default function Onboard() {
         <div className="flex justify-between items-end">
           <div>
             <p className="text-[11px] font-bold text-on-surface-variant/60 uppercase tracking-wider mb-1">Available Beds</p>
-            <p className="text-5xl font-bold text-primary tracking-tight">14</p>
+            <p className="text-5xl font-bold text-primary tracking-tight">{inventory.available}</p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] font-bold text-tertiary uppercase tracking-wider mb-2">82% Occupied</p>
+            <p className="text-[10px] font-bold text-tertiary uppercase tracking-wider mb-2">{inventory.occupancy}% Occupied</p>
             <div className="w-32 h-1.5 bg-surface rounded-full overflow-hidden border border-surface-container-high">
-              <div className="h-full bg-tertiary w-[82%]"></div>
+              <div className="h-full bg-tertiary transition-all duration-500" style={{ width: `${inventory.occupancy}%` }}></div>
             </div>
           </div>
         </div>
         <div className="pt-6 border-t border-surface flex gap-3">
           <Info className="text-primary shrink-0" size={18} />
           <p className="text-[11px] font-bold text-on-surface-variant/70 leading-relaxed uppercase tracking-wider">
-            Rooms in the East Wing are currently undergoing floor maintenance. Avoid new assignments in the 400-block if possible.
+            Real-time synchronization active. Room assignments are locked once submitted to the architectural ledger.
           </p>
         </div>
       </section>

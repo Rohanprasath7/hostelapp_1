@@ -1,21 +1,43 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Filter, ChevronRight, UserPlus } from 'lucide-react';
+import { Search, Filter, ChevronRight, UserPlus, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { cn } from '../lib/utils';
 
 export default function Residents() {
   const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState('All');
+  const [residents, setResidents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const residents = [
-    { id: '1', name: 'Alexander Chen', room: 'Room 402-B', joined: 'Oct 12, 2023', status: 'Paid', statusColor: 'bg-tertiary/10 text-tertiary', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=100&h=100' },
-    { id: '2', name: 'Sarah Jenkins', room: 'Room 115-A', joined: 'Nov 04, 2023', status: 'Balance Due', statusColor: 'bg-error/10 text-error', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100&h=100' },
-    { id: '3', name: 'Marcus Thorne', room: 'Room 208-D', joined: 'Dec 01, 2023', status: 'Paid', statusColor: 'bg-tertiary/10 text-tertiary', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=100&h=100' },
-    { id: '4', name: 'Elena Rodriguez', room: 'Room 303-A', joined: 'Sep 28, 2023', status: 'Partial', statusColor: 'bg-primary/10 text-primary', image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100&h=100' },
-  ];
+  useEffect(() => {
+    const q = query(collection(db, 'residents'), orderBy('name', 'asc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setResidents(data);
+      setLoading(false);
+    }, (error) => {
+      console.error("Firestore Error:", error);
+      setLoading(false);
+    });
 
-  const filters = ['All', 'Paid', 'Pending', 'Overdue'];
+    return () => unsubscribe();
+  }, []);
+
+  const filteredResidents = residents.filter(r => {
+    const matchesSearch = r.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                         r.room.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFilter = activeFilter === 'All' || r.status === activeFilter;
+    return matchesSearch && matchesFilter;
+  });
+
+  const filters = ['All', 'Active', 'Pending', 'Checked Out'];
 
   return (
     <div className="space-y-8">
@@ -33,6 +55,8 @@ export default function Residents() {
           <input 
             type="text" 
             placeholder="Search for residents..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-11 pr-4 py-3 bg-white border border-surface-container-high rounded-xl focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all focus:ring-0 text-sm font-medium"
           />
         </div>
@@ -59,48 +83,72 @@ export default function Residents() {
       <section className="space-y-4">
         <div className="flex items-center justify-between px-1">
           <h2 className="text-[11px] font-bold tracking-wider text-on-surface-variant/50 uppercase">Resident Ledger</h2>
-          <span className="text-[11px] font-bold text-primary">248 Total</span>
+          <span className="text-[11px] font-bold text-primary">{filteredResidents.length} Total</span>
         </div>
 
-        <div className="space-y-3">
-          {residents.map((resident, i) => (
-            <motion.div
-              key={resident.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              onClick={() => navigate(`/residents/${resident.id}`)}
-              className="group bg-white p-4 rounded-2xl border border-surface-container-high flex items-center justify-between transition-all hover:border-primary/30 hover:shadow-md cursor-pointer active:scale-[0.99]"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-surface overflow-hidden border border-surface-container-high">
-                  <img src={resident.image} alt={resident.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-on-surface group-hover:text-primary transition-colors">{resident.name}</h3>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[11px] font-bold text-on-surface-variant/60">
-                      {resident.room}
-                    </span>
-                    <span className="w-1 h-1 bg-on-surface-variant/20 rounded-full"></span>
-                    <span className="text-[11px] font-medium text-on-surface-variant/40">
-                      Joined {resident.joined}
-                    </span>
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-12 text-on-surface-variant/40">
+            <Loader2 className="animate-spin mb-2" size={32} />
+            <span className="text-xs font-bold uppercase tracking-widest">Loading Ledger...</span>
+          </div>
+        ) : filteredResidents.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-surface-container-high">
+            <p className="text-on-surface-variant text-sm font-medium">No residents found.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredResidents.map((resident, i) => (
+              <motion.div
+                key={resident.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                onClick={() => navigate(`/residents/${resident.id}`)}
+                className="group bg-white p-4 rounded-2xl border border-surface-container-high flex items-center justify-between transition-all hover:border-primary/30 hover:shadow-md cursor-pointer active:scale-[0.99] relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full -mr-8 -mt-8 group-hover:bg-primary/10 transition-colors"></div>
+                
+                <div className="flex items-center gap-4 relative z-10">
+                  <div className="w-12 h-12 rounded-xl bg-surface flex items-center justify-center border border-surface-container-high overflow-hidden group-hover:border-primary/30 transition-colors">
+                    {resident.image ? (
+                      <img src={resident.image} alt={resident.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <span className="text-lg font-bold text-primary">{resident.name[0]}</span>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-on-surface group-hover:text-primary transition-colors">{resident.name}</h3>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[11px] font-bold text-on-surface-variant/60">
+                        {resident.room}
+                      </span>
+                      <span className="w-1 h-1 bg-on-surface-variant/20 rounded-full"></span>
+                      <span className="text-[11px] font-bold text-secondary/60">
+                        {resident.nationality}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className={cn(
-                  "px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider",
-                  resident.statusColor
-                )}>
-                  {resident.status}
-                </span>
-                <ChevronRight size={18} className="text-on-surface-variant/30 group-hover:text-primary transition-colors" />
-              </div>
-            </motion.div>
-          ))}
-        </div>
+                
+                <div className="flex items-center gap-4 relative z-10">
+                  <div className="text-right mr-2">
+                    <p className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-wider">Balance</p>
+                    <p className="text-sm font-bold text-on-surface">{resident.currency}{resident.balance?.toLocaleString()}</p>
+                  </div>
+                  <span className={cn(
+                    "px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider",
+                    resident.status === 'Active' ? 'bg-tertiary/10 text-tertiary' : 
+                    resident.status === 'Pending' ? 'bg-primary/10 text-primary' : 
+                    'bg-on-surface-variant/10 text-on-surface-variant'
+                  )}>
+                    {resident.status}
+                  </span>
+                  <ChevronRight size={18} className="text-on-surface-variant/30 group-hover:text-primary transition-colors" />
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* FAB */}

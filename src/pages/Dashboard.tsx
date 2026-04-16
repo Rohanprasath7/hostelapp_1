@@ -1,22 +1,56 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, CreditCard, AlertTriangle, Bed, Plus, ArrowRight, Calendar, Map, BarChart3, Wrench, CheckCircle2, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
+import { collection, onSnapshot, query, limit, orderBy } from 'firebase/firestore';
+import { db, auth } from '../lib/firebase';
 import { cn } from '../lib/utils';
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const [counts, setCounts] = useState({ residents: 0, payments: 0, complaints: 0, rooms: 0 });
+  const [activities, setActivities] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Listen for residents count
+    const unsubResidents = onSnapshot(collection(db, 'residents'), (snap) => {
+      setCounts(prev => ({ ...prev, residents: snap.size }));
+    });
+
+    // Listen for open complaints
+    const unsubComplaints = onSnapshot(collection(db, 'complaints'), (snap) => {
+      const open = snap.docs.filter(d => d.data().status !== 'Resolved').length;
+      setCounts(prev => ({ ...prev, complaints: open }));
+    });
+
+    // Listen for rooms count
+    const unsubRooms = onSnapshot(collection(db, 'rooms'), (snap) => {
+      setCounts(prev => ({ ...prev, rooms: snap.size }));
+    });
+
+    // Listen for recent activity (complaints for now)
+    const q = query(collection(db, 'complaints'), orderBy('createdAt', 'desc'), limit(5));
+    const unsubActivity = onSnapshot(q, (snap) => {
+      const data = snap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setActivities(data);
+    });
+
+    return () => {
+      unsubResidents();
+      unsubComplaints();
+      unsubRooms();
+      unsubActivity();
+    };
+  }, []);
 
   const stats = [
-    { label: 'Total Residents', value: '142', icon: Users, color: 'text-primary', change: '+12.5% this month' },
-    { label: 'Pending Payments', value: '12', icon: CreditCard, color: 'text-error', change: '-4.2% from June' },
-    { label: 'Open Complaints', value: '04', icon: AlertTriangle, color: 'text-error', change: '2 new today' },
-    { label: 'Available Rooms', value: '08', icon: Bed, color: 'text-tertiary', change: '85% occupancy' },
-  ];
-
-  const activities = [
-    { name: 'Alex Rivera', action: 'Rent payment confirmed', amount: '+$850.00', time: 'Today, 08:45 AM', icon: CreditCard, iconBg: 'bg-surface', iconColor: 'text-primary' },
-    { name: 'Room 402B', action: 'Maintenance request: Leakage', status: 'PENDING', time: 'Yesterday, 10:00 PM', icon: Wrench, iconBg: 'bg-surface', iconColor: 'text-error' },
-    { name: 'Sarah Jenkins', action: 'New check-in registered', room: 'Room 105', time: 'July 12, 06:12 PM', icon: Users, iconBg: 'bg-surface', iconColor: 'text-tertiary' },
+    { label: 'Total Residents', value: counts.residents.toString(), icon: Users, color: 'text-primary', change: 'Live Ledger' },
+    { label: 'Pending Payments', value: '0', icon: CreditCard, color: 'text-error', change: 'Syncing...' },
+    { label: 'Open Complaints', value: counts.complaints.toString().padStart(2, '0'), icon: AlertTriangle, color: 'text-error', change: 'Active Tickets' },
+    { label: 'Available Rooms', value: counts.rooms.toString().padStart(2, '0'), icon: Bed, color: 'text-tertiary', change: 'Inventory' },
   ];
 
   return (
@@ -25,7 +59,7 @@ export default function Dashboard() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-on-surface">Dashboard Overview</h1>
-          <p className="text-sm text-on-surface-variant">Welcome back, Alexander Wright</p>
+          <p className="text-sm text-on-surface-variant">Welcome back, {auth.currentUser?.displayName || 'Administrator'}</p>
         </div>
         <div className="flex gap-3">
           <button 
@@ -37,7 +71,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Stats Grid */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, i) => (
           <motion.div
@@ -45,16 +78,17 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="bg-white p-6 rounded-2xl border border-surface-container-high shadow-sm flex flex-col gap-2"
+            className="bg-white p-6 rounded-2xl border border-surface-container-high shadow-sm flex flex-col gap-2 relative overflow-hidden group hover:border-primary/30 transition-all"
           >
-            <div className="flex justify-between items-start">
-              <span className="text-[13px] font-medium text-on-surface-variant">{stat.label}</span>
-              <stat.icon className={stat.color} size={20} />
+            <div className="absolute top-0 right-0 w-16 h-16 bg-primary/5 rounded-bl-full -mr-4 -mt-4 group-hover:bg-primary/10 transition-colors"></div>
+            <div className="flex justify-between items-start relative z-10">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant/50">{stat.label}</span>
+              <stat.icon className={stat.color} size={18} />
             </div>
-            <p className="text-2xl font-bold text-on-surface">{stat.value}</p>
+            <p className="text-3xl font-bold text-on-surface tracking-tight relative z-10">{stat.value}</p>
             <span className={cn(
-              "text-xs font-semibold",
-              stat.change.includes('+') || stat.change.includes('occupancy') ? "text-tertiary" : "text-error"
+              "text-[10px] font-bold uppercase tracking-wider relative z-10",
+              stat.change.includes('+') || stat.change.includes('Live') ? "text-tertiary" : "text-error"
             )}>
               {stat.change}
             </span>
@@ -63,45 +97,31 @@ export default function Dashboard() {
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Chart Area (Mocked as a card with bars) */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white p-6 rounded-2xl border border-surface-container-high shadow-sm">
-            <h3 className="text-lg font-bold text-on-surface mb-6">Revenue Growth</h3>
-            <div className="h-[240px] flex items-end gap-3 pt-4 border-t border-surface-container-high">
-              {[40, 60, 45, 80, 65, 90, 75, 85, 50, 70, 60, 95].map((height, i) => (
-                <div 
-                  key={i} 
-                  className="flex-1 bg-primary/80 rounded-t-sm transition-all hover:bg-primary"
-                  style={{ height: `${height}%` }}
-                ></div>
-              ))}
-            </div>
-          </div>
-
           {/* Quick Actions */}
           <div className="grid grid-cols-2 gap-4">
             <button 
               onClick={() => navigate('/payments')}
-              className="bg-white border border-surface-container-high p-6 rounded-2xl flex items-center gap-4 hover:bg-surface transition-colors group"
+              className="bg-white border border-surface-container-high p-6 rounded-2xl flex items-center gap-4 hover:bg-surface transition-colors group shadow-sm"
             >
-              <div className="w-12 h-12 rounded-xl bg-surface flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+              <div className="w-12 h-12 rounded-xl bg-surface flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors border border-surface-container-high">
                 <CreditCard size={24} />
               </div>
               <div className="text-left">
                 <p className="font-bold text-on-surface">Add Payment</p>
-                <p className="text-xs text-on-surface-variant">Record new transaction</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/40">Record new transaction</p>
               </div>
             </button>
             <button 
               onClick={() => navigate('/rooms')}
-              className="bg-white border border-surface-container-high p-6 rounded-2xl flex items-center gap-4 hover:bg-surface transition-colors group"
+              className="bg-white border border-surface-container-high p-6 rounded-2xl flex items-center gap-4 hover:bg-surface transition-colors group shadow-sm"
             >
-              <div className="w-12 h-12 rounded-xl bg-surface flex items-center justify-center text-tertiary group-hover:bg-tertiary group-hover:text-white transition-colors">
+              <div className="w-12 h-12 rounded-xl bg-surface flex items-center justify-center text-tertiary group-hover:bg-tertiary group-hover:text-white transition-colors border border-surface-container-high">
                 <Bed size={24} />
               </div>
               <div className="text-left">
                 <p className="font-bold text-on-surface">Room Map</p>
-                <p className="text-xs text-on-surface-variant">Check availability</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/40">Check availability</p>
               </div>
             </button>
           </div>
@@ -114,31 +134,33 @@ export default function Dashboard() {
             <button className="text-primary text-xs font-bold hover:underline">View All</button>
           </div>
           <div className="space-y-6">
-            {activities.map((activity, i) => (
-              <div key={i} className="flex items-center justify-between pb-4 border-b border-surface-container-high last:border-0 last:pb-0">
-                <div className="flex items-center gap-4">
-                  <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center border border-surface-container-high", activity.iconBg, activity.iconColor)}>
-                    <activity.icon size={20} />
+            {activities.length === 0 ? (
+              <p className="text-xs text-on-surface-variant/50 text-center py-4 uppercase font-bold tracking-widest">No recent activity</p>
+            ) : (
+              activities.map((activity, i) => (
+                <div key={activity.id} className="flex items-center justify-between pb-4 border-b border-surface-container-high last:border-0 last:pb-0">
+                  <div className="flex items-center gap-4">
+                    <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center border border-surface-container-high bg-surface text-primary")}>
+                      <AlertTriangle size={20} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-on-surface">{activity.title}</p>
+                      <p className="text-[11px] text-on-surface-variant">
+                        {activity.createdAt ? new Date(activity.createdAt).toLocaleTimeString() : 'Just now'}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-on-surface">{activity.name}</p>
-                    <p className="text-[11px] text-on-surface-variant">{activity.time}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  {activity.amount && (
-                    <p className={cn("text-sm font-bold", activity.amount.startsWith('+') ? "text-tertiary" : "text-error")}>
-                      {activity.amount}
-                    </p>
-                  )}
-                  {activity.status && (
-                    <span className="text-[10px] font-bold text-error uppercase tracking-wider">
+                  <div className="text-right">
+                    <span className={cn(
+                      "text-[10px] font-bold uppercase tracking-wider",
+                      activity.status === 'Open' ? 'text-error' : 'text-tertiary'
+                    )}>
                       {activity.status}
                     </span>
-                  )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>
