@@ -35,9 +35,9 @@ export default function Layout() {
   ];
 
   return (
-    <div className="min-h-screen bg-secondary flex justify-center items-center overflow-hidden">
+    <div className="min-h-screen bg-secondary flex justify-center items-center p-0 lg:p-4 overflow-hidden">
       {/* Phone Frame for Desktop */}
-      <div className="w-full h-full lg:max-w-[450px] lg:h-[90vh] lg:rounded-[3rem] lg:border-[8px] lg:border-secondary-container lg:shadow-2xl bg-surface flex flex-col relative overflow-hidden">
+      <div className="w-full min-h-screen lg:min-h-0 lg:h-[90vh] lg:max-w-[450px] lg:rounded-[3rem] lg:border-[8px] lg:border-secondary-container lg:shadow-2xl bg-surface flex flex-col relative overflow-hidden">
         
         {/* Top Bar (Status Bar style for mobile) */}
         <header className="h-[calc(4rem+env(safe-area-inset-top,0px))] bg-white border-b border-surface-container-high flex items-end justify-between px-6 pb-3 sticky top-0 z-50 shrink-0 pt-[env(safe-area-inset-top,0px)]">

@@ -26,9 +26,9 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-secondary flex justify-center items-center p-0 overflow-hidden">
+    <div className="min-h-screen bg-secondary flex justify-center items-center p-0 lg:p-4 overflow-hidden">
       {/* Phone Frame for Desktop */}
-      <div className="w-full h-full lg:max-w-[450px] lg:h-[90vh] lg:rounded-[3rem] lg:border-[8px] lg:border-secondary-container lg:shadow-2xl bg-white flex flex-col relative overflow-hidden">
+      <div className="w-full min-h-screen lg:min-h-0 lg:h-[90vh] lg:max-w-[450px] lg:rounded-[3rem] lg:border-[8px] lg:border-secondary-container lg:shadow-2xl bg-white flex flex-col relative overflow-hidden">
         
         <section className="flex-1 flex flex-col p-8 pt-[env(safe-area-inset-top,4rem)] pb-[env(safe-area-inset-bottom,1rem)] overflow-y-auto no-scrollbar">
           <header className="mb-8 md:mb-12 text-center shrink-0">
@@ -127,6 +127,7 @@ export default function Login() {
               <p className="text-on-surface-variant text-xs">
                 New Property? <button className="text-primary font-bold hover:underline">Apply for Onboarding</button>
               </p>
+              <p className="text-[8px] text-on-surface-variant/20 mt-2 uppercase tracking-widest">Build v1.0.2 • Optimized for Mobile</p>
             </footer >
           </motion.div>
         </section>
