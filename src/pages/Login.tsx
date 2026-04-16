@@ -1,14 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, Fingerprint, Key, Building2, Headphones } from 'lucide-react';
 import { motion } from 'motion/react';
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Handle the redirect result when the page loads after a Google Sign-In redirect
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result?.user) {
+          navigate('/');
+        }
+      } catch (err: any) {
+        console.error("Redirect Error:", err);
+        setError(err.message);
+      }
+    };
+    handleRedirectResult();
+  }, [navigate]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,12 +33,25 @@ export default function Login() {
   };
 
   const handleGoogleLogin = async () => {
+    setIsAuthenticating(true);
+    setError(null);
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      navigate('/');
+      
+      // Mobile browsers (especially Brave/Safari) often block popups or fail to communicate back.
+      // Redirect is much more reliable on mobile.
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        await signInWithRedirect(auth, provider);
+      } else {
+        await signInWithPopup(auth, provider);
+        navigate('/');
+      }
     } catch (err: any) {
+      console.error("Login Error:", err);
       setError(err.message);
+      setIsAuthenticating(false);
     }
   };
 
@@ -107,10 +137,15 @@ export default function Login() {
               <button 
                 type="button"
                 onClick={handleGoogleLogin}
-                className="w-full flex items-center justify-center gap-3 py-4 px-4 bg-white border border-surface-container-high rounded-xl text-on-surface font-bold text-sm hover:bg-surface transition-all active:scale-[0.98] shadow-sm"
+                disabled={isAuthenticating}
+                className="w-full flex items-center justify-center gap-3 py-4 px-4 bg-white border border-surface-container-high rounded-xl text-on-surface font-bold text-sm hover:bg-surface transition-all active:scale-[0.98] shadow-sm disabled:opacity-50"
               >
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
-                Sign in with Google
+                {isAuthenticating ? (
+                  <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+                )}
+                {isAuthenticating ? 'Authenticating...' : 'Sign in with Google'}
               </button>
 
               <div className="grid grid-cols-2 gap-3">
@@ -127,7 +162,7 @@ export default function Login() {
               <p className="text-on-surface-variant text-xs">
                 New Property? <button className="text-primary font-bold hover:underline">Apply for Onboarding</button>
               </p>
-              <p className="text-[8px] text-on-surface-variant/20 mt-2 uppercase tracking-widest">Build v1.0.2 • Optimized for Mobile</p>
+              <p className="text-[8px] text-on-surface-variant/20 mt-2 uppercase tracking-widest">Build v1.0.3 • Optimized for Mobile</p>
             </footer >
           </motion.div>
         </section>
