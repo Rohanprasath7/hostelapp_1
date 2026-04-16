@@ -74,12 +74,30 @@
         "upiId": { "type": "string", "description": "UPI ID for payments." }
       },
       "required": ["hostelName"]
+    },
+    "RoomType": {
+      "title": "RoomType",
+      "description": "Configuration for a room type.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the room type (e.g., Standard)." },
+        "amenities": { 
+          "type": "array", 
+          "items": { "type": "string" },
+          "description": "List of amenities." 
+        }
+      },
+      "required": ["name", "amenities"]
     }
   },
   "firestore": {
     "/settings/{settingId}": {
       "schema": "Settings",
       "description": "Global settings (usually a single document 'global')."
+    },
+    "/roomTypes/{typeId}": {
+      "schema": "RoomType",
+      "description": "Global room type configurations."
     },
     "/residents/{residentId}": {
       "schema": "Resident",

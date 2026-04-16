@@ -30,8 +30,8 @@ export default function Login() {
       {/* Phone Frame for Desktop */}
       <div className="w-full h-full lg:max-w-[450px] lg:h-[90vh] lg:rounded-[3rem] lg:border-[8px] lg:border-secondary-container lg:shadow-2xl bg-white flex flex-col relative overflow-hidden">
         
-        <section className="flex-1 flex flex-col p-8 pt-16">
-          <header className="mb-12 text-center">
+        <section className="flex-1 flex flex-col p-8 pt-[env(safe-area-inset-top,4rem)] pb-[env(safe-area-inset-bottom,1rem)] overflow-y-auto no-scrollbar">
+          <header className="mb-8 md:mb-12 text-center shrink-0">
             <motion.div 
               initial={{ scale: 0.5, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -47,11 +47,11 @@ export default function Login() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className="flex-1 flex flex-col"
+            className="flex-1 flex flex-col justify-center max-w-sm mx-auto w-full"
           >
             <form onSubmit={handleLogin} className="space-y-5">
               {error && (
-                <div className="bg-error/10 text-error text-[10px] font-bold p-3 rounded-lg uppercase tracking-wider text-center">
+                <div className="bg-error/10 text-error text-[10px] font-bold p-3 rounded-lg uppercase tracking-wider text-center animate-pulse">
                   {error}
                 </div>
               )}
@@ -123,7 +123,7 @@ export default function Login() {
               </div>
             </form>
 
-            <footer className="mt-auto pt-8 text-center">
+            <footer className="mt-8 pb-4 text-center shrink-0">
               <p className="text-on-surface-variant text-xs">
                 New Property? <button className="text-primary font-bold hover:underline">Apply for Onboarding</button>
               </p>
@@ -131,11 +131,11 @@ export default function Login() {
           </motion.div>
         </section>
 
-        {/* Decorative Bottom Bar */}
-        <div className="h-1.5 w-32 bg-surface-container-highest rounded-full mx-auto mb-2 shrink-0"></div>
+        {/* Decorative Bottom Bar (Only for desktop frame simulation) */}
+        <div className="hidden lg:block h-1.5 w-32 bg-surface-container-highest rounded-full mx-auto mb-2 shrink-0"></div>
       </div>
 
-      <button className="fixed bottom-8 right-8 bg-white text-primary p-4 rounded-xl shadow-xl hover:bg-primary hover:text-white transition-all border border-surface-container-high lg:hidden">
+      <button className="fixed bottom-8 right-8 bg-white text-primary p-4 rounded-xl shadow-xl hover:bg-primary hover:text-white transition-all border border-surface-container-high lg:hidden z-50">
         <Headphones size={24} />
       </button>
     </div>

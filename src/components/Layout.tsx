@@ -40,7 +40,7 @@ export default function Layout() {
       <div className="w-full h-full lg:max-w-[450px] lg:h-[90vh] lg:rounded-[3rem] lg:border-[8px] lg:border-secondary-container lg:shadow-2xl bg-surface flex flex-col relative overflow-hidden">
         
         {/* Top Bar (Status Bar style for mobile) */}
-        <header className="h-16 bg-white border-b border-surface-container-high flex items-center justify-between px-6 sticky top-0 z-50 shrink-0">
+        <header className="h-[calc(4rem+env(safe-area-inset-top,0px))] bg-white border-b border-surface-container-high flex items-end justify-between px-6 pb-3 sticky top-0 z-50 shrink-0 pt-[env(safe-area-inset-top,0px)]">
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center overflow-hidden">
               {branding.logoUrl ? (
@@ -84,7 +84,7 @@ export default function Layout() {
         </main>
 
         {/* Bottom Navigation */}
-        <nav className="absolute bottom-0 left-0 w-full flex justify-around items-center px-2 pt-3 pb-8 bg-white/80 backdrop-blur-md border-t border-surface-container-high shadow-lg z-50">
+        <nav className="absolute bottom-0 left-0 w-full flex justify-around items-center px-2 pt-3 pb-[env(safe-area-inset-bottom,2rem)] bg-white/80 backdrop-blur-md border-t border-surface-container-high shadow-lg z-50">
           {navItems.map((item) => (
             <NavLink
               key={item.path}
