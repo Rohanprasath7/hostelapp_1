@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-headline: "Inter", sans-serif;
+
+  --color-primary: #2563EB;
+  --color-primary-container: #1D4ED8;
+  --color-surface: #F1F5F9;
+  --color-surface-container-low: #FFFFFF;
+  --color-surface-container-high: #E2E8F0;
+  --color-surface-container-highest: #CBD5E1;
+  --color-on-surface: #1E293B;
+  --color-on-surface-variant: #64748B;
+  --color-tertiary: #10B981;
+  --color-tertiary-container: #059669;
+  --color-secondary: #0F172A;
+  --color-secondary-container: #1E293B;
+  --color-error: #EF4444;
+  --color-error-container: #FEE2E2;
+}
+
+@layer base {
+  body {
+    @apply bg-surface text-on-surface font-sans antialiased select-none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    overflow-x: hidden;
+  }
+
+  input, textarea {
+    @apply select-text;
+  }
+}
+
+/* Hide scrollbars for mobile app feel */
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}
+
+.fintech-gradient {
+  background: #2563EB;
+}
